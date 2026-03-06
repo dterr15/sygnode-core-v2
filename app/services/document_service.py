@@ -1,17 +1,20 @@
 """
-Document Service — routes documents to DataRoom NAS.
+Document Service - routes documents to DataRoom NAS.
 Replaces Cloudflare R2 completely (ADR-011).
-Fallback to R2 during transition period when r2_fallback_enabled=True.
+Local filesystem fallback when DATAROOM_ENABLED=false (dev/test mode).
 """
 
 import hashlib
 import uuid
 from datetime import datetime, timezone
 from dataclasses import dataclass
+from pathlib import Path
 
 import httpx
 
 from app.settings import settings
+
+LOCAL_STORAGE_ROOT = Path("/tmp/sygnode_documents")
 
 
 @dataclass
@@ -28,7 +31,7 @@ class DataRoomUnavailable(Exception):
 class DocumentService:
     """
     Enruta documentos al DataRoom en el NAS del cliente.
-    Reemplaza Cloudflare R2.
+    Fallback a almacenamiento local cuando DATAROOM_ENABLED=false.
     """
 
     def __init__(self):
@@ -45,7 +48,7 @@ class DocumentService:
         parent_id: uuid.UUID,
         supplier_id: uuid.UUID | None = None,
     ) -> DocumentRef:
-        """Upload document to DataRoom NAS. Returns reference with path and SHA256."""
+        """Upload document. Returns reference with path and SHA256."""
         sha256 = hashlib.sha256(file_bytes).hexdigest()
         path = self._build_path(org_id, doc_type, parent_id, supplier_id, filename)
 
@@ -71,13 +74,17 @@ class DocumentService:
             except (httpx.HTTPError, httpx.ConnectError) as e:
                 if not settings.r2_fallback_enabled:
                     raise DataRoomUnavailable(f"DataRoom no disponible: {e}")
-                # Fall through to local storage fallback
+                # Fall through to local storage
 
-        # Fallback: store reference only (R2 or local during dev)
+        # Local filesystem fallback (dev/test)
+        local_path = LOCAL_STORAGE_ROOT / path
+        local_path.parent.mkdir(parents=True, exist_ok=True)
+        local_path.write_bytes(file_bytes)
+
         return DocumentRef(storage_ref=path, sha256_hash=sha256)
 
     async def get_document_bytes(self, storage_ref: str) -> bytes:
-        """Download document from DataRoom for processing with Gemini."""
+        """Download document from DataRoom or local storage."""
         if settings.dataroom_enabled and self.dataroom_url:
             try:
                 response = await self.client.get(
@@ -87,12 +94,15 @@ class DocumentService:
                 )
                 response.raise_for_status()
                 return response.content
-            except (httpx.HTTPError, httpx.ConnectError):
-                if settings.r2_fallback_enabled:
-                    raise DataRoomUnavailable("DataRoom no disponible y fallback R2 deshabilitado")
-                raise
+            except (httpx.HTTPError, httpx.ConnectError) as e:
+                raise DataRoomUnavailable(f"DataRoom no disponible: {e}")
 
-        raise DataRoomUnavailable("DataRoom no configurado")
+        # Local filesystem fallback
+        local_path = LOCAL_STORAGE_ROOT / storage_ref
+        if local_path.exists():
+            return local_path.read_bytes()
+
+        raise DataRoomUnavailable(f"Documento no encontrado localmente: {storage_ref}")
 
     def _build_path(
         self,

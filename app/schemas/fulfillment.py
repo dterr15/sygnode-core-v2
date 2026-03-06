@@ -5,7 +5,7 @@ from pydantic import BaseModel, Field
 
 
 class JustifyVarianceRequest(BaseModel):
-    justification: str = Field(..., min_length=50)
+    justification: str = Field(..., min_length=1)
 
 
 class FulfillmentOut(BaseModel):

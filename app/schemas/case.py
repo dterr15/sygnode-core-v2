@@ -28,7 +28,7 @@ class CaseTimelineEventOut(BaseModel):
 
 class CaseEvidenceOut(BaseModel):
     id: UUID
-    case_id: UUID
+    case_id: UUID | None = None
     evidence_type: str
     evidence_subtype: str | None = None
     filename: str

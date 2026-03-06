@@ -158,14 +158,23 @@ async def upload_po(
 
     # Create fulfillment
     from decimal import Decimal
+    from datetime import date as date_type
     delta_pct = Decimal("0")
     requires_justification = False
     flag = "WITHIN_RANGE"
 
+    # Convert po_date string to Python date for SQLite compatibility
+    po_date_val = None
+    if po_data.po_date:
+        try:
+            po_date_val = date_type.fromisoformat(po_data.po_date)
+        except (ValueError, TypeError):
+            po_date_val = None
+
     fulfillment = CaseFulfillment(
         case_id=case_id,
         po_number=po_data.po_number,
-        po_date=po_data.po_date,
+        po_date=po_date_val,
         po_issue_date_confidence=po_data.po_issue_date_confidence,
         final_amount=po_data.total_amount,
         currency=po_data.currency,

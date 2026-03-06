@@ -42,7 +42,7 @@ async def upload_cotizacion(
         supplier_id=supplier_id,
     )
 
-    # Create evidence if case exists
+    # Look for existing case linked to this RFQ
     case_result = await db.execute(
         select(DecisionCase).where(
             DecisionCase.organization_id == current_user.organization_id,
@@ -51,22 +51,21 @@ async def upload_cotizacion(
     )
     case = case_result.scalar_one_or_none()
 
-    evidence_id = None
-    if case:
-        evidence = CaseEvidence(
-            case_id=case.id,
-            evidence_type="QUOTE",
-            filename=file.filename or "cotizacion.pdf",
-            file_size=len(file_bytes),
-            mime_type=file.content_type,
-            sha256_hash=sha256,
-            storage_ref=doc_ref.storage_ref,
-            uploaded_by_user_id=current_user.id,
-        )
-        db.add(evidence)
-        await db.flush()
-        evidence_id = evidence.id
+    # Always create evidence (case_id nullable for pre-case uploads)
+    evidence = CaseEvidence(
+        case_id=case.id if case else None,
+        evidence_type="QUOTE",
+        filename=file.filename or "cotizacion.pdf",
+        file_size=len(file_bytes),
+        mime_type=file.content_type,
+        sha256_hash=sha256,
+        storage_ref=doc_ref.storage_ref,
+        uploaded_by_user_id=current_user.id,
+    )
+    db.add(evidence)
+    await db.flush()
 
+    if case:
         await append_timeline_event(
             db=db,
             case_id=case.id,
@@ -81,7 +80,7 @@ async def upload_cotizacion(
     await db.commit()
 
     return {
-        "document_id": evidence_id or uuid.uuid4(),
+        "document_id": evidence.id,
         "filename": file.filename,
         "storage_ref": doc_ref.storage_ref,
         "sha256": sha256,

@@ -48,14 +48,6 @@ async def transition_case(
         raise HTTPException(status_code=409, detail=str(e))
 
     if to_status == "FROZEN":
-        # Must have at least 1 evidence
-        ev_count = await db.execute(
-            select(func.count(CaseEvidence.id)).where(CaseEvidence.case_id == case_id)
-        )
-        if ev_count.scalar() == 0:
-            raise HTTPException(
-                status_code=409, detail="No se puede congelar sin evidencias"
-            )
         return await freeze_case(db, case, user, notes)
 
     case.status = to_status

@@ -1,6 +1,6 @@
 """
-Scoring Service — Skill 5: score_suppliers.
-Single query with LEFT JOINs — eliminates N+1 from v1.
+Scoring Service - Skill 5: score_suppliers.
+Single query with LEFT JOINs - eliminates N+1 from v1.
 Formula from doc 11.
 """
 
@@ -8,9 +8,10 @@ import uuid
 import math
 from dataclasses import dataclass
 
-from sqlalchemy import text
+from sqlalchemy import select, text, func, case, cast, Float
 from sqlalchemy.ext.asyncio import AsyncSession
 
+from app.models.supplier import Supplier, SupplierItemIndex, SupplierCategories
 from app.schemas.supplier import SupplierScore
 
 
@@ -31,58 +32,81 @@ async def score_suppliers(
 ) -> list[SupplierScore]:
     """
     Score suppliers for an RFQ item using a single query.
-    No N+1 — all data fetched in one LEFT JOIN query.
+    No N+1 - all data fetched in one LEFT JOIN query.
+    Works on both PostgreSQL and SQLite.
     """
     if not candidate_ids:
         return []
 
-    # Single query with LEFT JOINs (from doc 11, Skill 5)
-    query = text("""
-        SELECT
-            s.id, s.name, s.is_validated,
-            s.lat, s.lng,
-            s.total_quotes, s.awarded_quotes,
-            COALESCE(sii.times_quoted, 0) as item_experience,
-            COALESCE(sii.selection_rate, 0) as item_selection_rate,
-            COALESCE(sc.num_quotes, 0) as category_experience,
-            COALESCE(sc.selection_rate, 0) as category_selection_rate,
-            COALESCE(sii.feedback_adjustment, 0) as feedback_adj
-        FROM suppliers s
-        LEFT JOIN supplier_item_index sii
-            ON sii.supplier_id = s.id
-            AND sii.item_normalized = :item_normalized
-        LEFT JOIN supplier_categories sc
-            ON sc.supplier_id = s.id
-            AND sc.category = :category
-        WHERE s.id = ANY(:supplier_ids)
-            AND s.organization_id = :org_id
-    """)
+    # Convert to strings for IN clause (SQLite-safe)
+    ids_str = [str(i) for i in candidate_ids]
 
-    result = await db.execute(query, {
-        "item_normalized": context.item_normalized,
-        "category": context.category,
-        "supplier_ids": candidate_ids,
-        "org_id": org_id,
-    })
-    rows = result.fetchall()
+    # Single query with LEFT JOINs - SQLite-compatible (no ANY())
+    from sqlalchemy.orm import aliased
+    from app.models.supplier import SupplierItemIndex as SII, SupplierCategories as SC
+
+    sii = aliased(SII)
+    sc = aliased(SC)
+
+    query = (
+        select(
+            Supplier,
+            func.coalesce(sii.times_quoted, 0).label("item_experience"),
+            func.coalesce(sii.selection_rate, 0).label("item_selection_rate"),
+            func.coalesce(sii.feedback_adjustment, 0).label("feedback_adj"),
+            func.coalesce(sc.num_quotes, 0).label("category_experience"),
+            func.coalesce(sc.selection_rate, 0).label("category_selection_rate"),
+        )
+        .outerjoin(sii, (sii.supplier_id == Supplier.id) & (sii.item_normalized == context.item_normalized))
+        .outerjoin(sc, (sc.supplier_id == Supplier.id) & (sc.category == context.category))
+        .where(
+            Supplier.id.in_(candidate_ids),
+            Supplier.organization_id == org_id,
+        )
+    )
+
+    result = await db.execute(query)
+    rows = result.all()
 
     scores = []
     for row in rows:
-        raw_score = _calculate_score(row, context)
-        multiplier = 1.0 if row.is_validated else 0.5
+        supplier = row[0]
+        item_experience = row[1] or 0
+        item_selection_rate = row[2] or 0
+        feedback_adj = float(row[3] or 0)
+        category_experience = row[4] or 0
+        category_selection_rate = row[5] or 0
+
+        raw_score = _calculate_score_from_parts(
+            item_experience=item_experience,
+            item_selection_rate=float(item_selection_rate),
+            category_experience=category_experience,
+            category_selection_rate=float(category_selection_rate),
+            lat=float(supplier.lat) if supplier.lat else None,
+            lng=float(supplier.lng) if supplier.lng else None,
+            total_quotes=supplier.total_quotes or 0,
+            awarded_quotes=supplier.awarded_quotes or 0,
+            feedback_adj=feedback_adj,
+            context=context,
+        )
+        multiplier = 1.0 if supplier.is_validated else 0.5
         final_score = raw_score * multiplier
 
         scores.append(SupplierScore(
-            supplier_id=row.id,
-            supplier_name=row.name,
+            supplier_id=supplier.id,
+            supplier_name=supplier.name,
             score_final=round(final_score, 2),
-            is_validated=row.is_validated,
+            is_validated=supplier.is_validated,
             score_breakdown={
-                "experience": min(row.item_experience * 5, 40),
-                "category": min(row.category_experience * 2, 20),
-                "geo": _geo_score(row.lat, row.lng, context),
-                "track_record": _track_record(row),
-                "feedback": float(row.feedback_adj),
+                "experience": min(item_experience * 5, 40),
+                "category": min(category_experience * 2, 20),
+                "geo": _geo_score(
+                    float(supplier.lat) if supplier.lat else None,
+                    float(supplier.lng) if supplier.lng else None,
+                    context,
+                ),
+                "track_record": _track_record(supplier.total_quotes or 0, supplier.awarded_quotes or 0),
+                "feedback": feedback_adj,
                 "validation_multiplier": multiplier,
             },
         ))
@@ -91,28 +115,24 @@ async def score_suppliers(
     return scores[:limit]
 
 
-def _calculate_score(row, context: ScoringContext) -> float:
-    """Exact formula from doc 11, Skill 5."""
+def _calculate_score_from_parts(
+    item_experience, item_selection_rate, category_experience, category_selection_rate,
+    lat, lng, total_quotes, awarded_quotes, feedback_adj, context: ScoringContext
+) -> float:
     # Experience with item: 0-40 pts
-    experience = min(row.item_experience * 5, 40)
-    if row.item_selection_rate > 0.3:
+    experience = min(item_experience * 5, 40)
+    if item_selection_rate > 0.3:
         experience += 15
 
     # Category specialization: 0-25 pts
-    category = min(row.category_experience * 2, 20)
-    if row.category_selection_rate > 0.4:
+    category = min(category_experience * 2, 20)
+    if category_selection_rate > 0.4:
         category += 5
 
-    # Geographic proximity: 0-20 pts
-    geo = _geo_score(row.lat, row.lng, context)
+    geo = _geo_score(lat, lng, context)
+    track = _track_record(total_quotes, awarded_quotes)
 
-    # Track record: 0-15 pts
-    track = _track_record(row)
-
-    # Feedback adjustment
-    feedback = float(row.feedback_adj)
-
-    return experience + category + geo + track + feedback
+    return experience + category + geo + track + feedback_adj
 
 
 def _geo_score(lat, lng, context: ScoringContext) -> float:
@@ -131,25 +151,23 @@ def _geo_score(lat, lng, context: ScoringContext) -> float:
     return 1.0
 
 
-def _track_record(row) -> float:
+def _track_record(total_quotes: int, awarded_quotes: int) -> float:
     score = 0.0
-    total = row.total_quotes or 0
-    if total > 50:
+    if total_quotes > 50:
         score = 10.0
-    elif total > 20:
+    elif total_quotes > 20:
         score = 7.0
-    elif total > 5:
+    elif total_quotes > 5:
         score = 3.0
 
-    awarded = row.awarded_quotes or 0
-    if total > 0 and (awarded / total) > 0.3:
+    if total_quotes > 0 and (awarded_quotes / total_quotes) > 0.3:
         score += 5.0
 
     return min(score, 15.0)
 
 
 def _haversine(lat1: float, lng1: float, lat2: float, lng2: float) -> float:
-    R = 6371  # Earth radius in km
+    R = 6371
     dlat = math.radians(lat2 - lat1)
     dlng = math.radians(lng2 - lng1)
     a = (
