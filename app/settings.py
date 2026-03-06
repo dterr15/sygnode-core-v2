@@ -21,7 +21,7 @@ class Settings(BaseSettings):
     cookie_samesite: str = "lax"
 
     # --- CORS ---
-    cors_origins: str = "http://localhost:3000,http://localhost:5173"
+    cors_origins: str = "http://localhost:3000,http://localhost:5173,http://localhost:8080"
 
     # --- Gemini (G4: server-side only, G6: explicit trigger only) ---
     gemini_api_key: str = ""

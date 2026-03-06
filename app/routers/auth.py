@@ -1,8 +1,11 @@
 from fastapi import APIRouter, Depends, Response
+from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.database import get_db
 from app.middleware.audit import log_audit
+from app.middleware.auth import CurrentUser
+from app.models.organization import Organization
 from app.schemas.auth import LoginRequest, RegisterRequest, LoginResponse, UserBrief, OrgBrief
 from app.services.auth_service import login, register
 from app.settings import settings
@@ -36,6 +39,32 @@ async def login_endpoint(
         user=UserBrief(id=str(user.id), email=user.email, name=user.name, role=user.role),
         organization=OrgBrief(
             id=str(org.id), rut=org.rut, name=org.name,
+            subscription_status=org.subscription_status,
+        ),
+    )
+
+
+@router.get("/me")
+async def me_endpoint(
+    current_user: CurrentUser,
+    db: AsyncSession = Depends(get_db),
+):
+    """Return current authenticated user and their organization."""
+    result = await db.execute(
+        select(Organization).where(Organization.id == current_user.organization_id)
+    )
+    org = result.scalar_one()
+    return LoginResponse(
+        user=UserBrief(
+            id=str(current_user.id),
+            email=current_user.email,
+            name=current_user.name,
+            role=current_user.role,
+        ),
+        organization=OrgBrief(
+            id=str(org.id),
+            rut=org.rut,
+            name=org.name,
             subscription_status=org.subscription_status,
         ),
     )

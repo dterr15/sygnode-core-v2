@@ -45,6 +45,7 @@ app.add_middleware(
 # --- Register routers ---
 from app.routers.health import router as health_router
 from app.routers.auth import router as auth_router
+from app.routers.dashboard import router as dashboard_router
 from app.routers.intake import router as intake_router
 from app.routers.rfqs import router as rfqs_router
 from app.routers.cotizaciones import router as cotizaciones_router
@@ -63,6 +64,7 @@ PREFIX = "/api/v2"
 
 app.include_router(health_router, prefix=PREFIX)
 app.include_router(auth_router, prefix=PREFIX)
+app.include_router(dashboard_router, prefix=PREFIX)
 app.include_router(intake_router, prefix=PREFIX)
 app.include_router(rfqs_router, prefix=PREFIX)
 app.include_router(cotizaciones_router, prefix=PREFIX)

@@ -6,7 +6,7 @@ from sqlalchemy import (
     String, Integer, Boolean, Numeric, Text, Date, DateTime,
     ForeignKey, UniqueConstraint, Index, CheckConstraint,
 )
-from sqlalchemy.dialects.postgresql import UUID, JSONB, ARRAY
+from app.db_types import UUIDType as UUID, JSONType as JSONB, ArrayType as ARRAY
 from sqlalchemy.orm import Mapped, mapped_column, relationship
 
 from app.database import Base
@@ -31,7 +31,7 @@ class DecisionCase(Base):
     area_solicitante: Mapped[str | None] = mapped_column(String(255))
     objeto_resumen: Mapped[str | None] = mapped_column(Text)
     contexto: Mapped[str | None] = mapped_column(Text)
-    tags: Mapped[list[str]] = mapped_column(ARRAY(String), nullable=False, default=list)
+    tags: Mapped[list[str]] = mapped_column(ARRAY(), nullable=False, default=list)
     frozen_first_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True))
     created_at: Mapped[datetime] = mapped_column(
         DateTime(timezone=True), nullable=False, default=lambda: datetime.now(timezone.utc)
@@ -78,7 +78,7 @@ class CaseTimelineEvent(Base):
     event_hash: Mapped[str] = mapped_column(String(64), nullable=False, unique=True)
     artifact_hash: Mapped[str | None] = mapped_column(String(64))
     related_doc_ids: Mapped[list[uuid.UUID]] = mapped_column(
-        ARRAY(UUID(as_uuid=True)), nullable=False, default=list
+        ARRAY(), nullable=False, default=list
     )
 
     case = relationship("DecisionCase", back_populates="timeline_events")
@@ -184,7 +184,7 @@ class CaseFulfillment(Base):
     delta_pct: Mapped[Decimal | None] = mapped_column(Numeric(8, 4))
     delta_abs: Mapped[Decimal | None] = mapped_column(Numeric(15, 2))
     baseline_amount: Mapped[Decimal | None] = mapped_column(Numeric(15, 2))
-    variance_flags: Mapped[list[str]] = mapped_column(ARRAY(String), nullable=False, default=list)
+    variance_flags: Mapped[list[str]] = mapped_column(ARRAY(), nullable=False, default=list)
     variance_justification: Mapped[str | None] = mapped_column(Text)
     requires_justification: Mapped[bool] = mapped_column(Boolean, nullable=False, default=False)
     reconciliation_status: Mapped[str] = mapped_column(String(25), nullable=False, default="PENDING")

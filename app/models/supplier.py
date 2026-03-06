@@ -6,7 +6,7 @@ from sqlalchemy import (
     String, Integer, Boolean, Numeric, DateTime, ForeignKey,
     UniqueConstraint, Index, CheckConstraint,
 )
-from sqlalchemy.dialects.postgresql import UUID, ARRAY
+from app.db_types import UUIDType as UUID, ArrayType as ARRAY
 from sqlalchemy.orm import Mapped, mapped_column
 
 from app.database import Base
@@ -26,8 +26,8 @@ class Supplier(Base):
     city: Mapped[str | None] = mapped_column(String(100))
     region: Mapped[str | None] = mapped_column(String(100))
     country: Mapped[str] = mapped_column(String(2), nullable=False, default="CL")
-    categories: Mapped[list[str]] = mapped_column(ARRAY(String), nullable=False, default=list)
-    tags: Mapped[list[str]] = mapped_column(ARRAY(String), nullable=False, default=list)
+    categories: Mapped[list[str]] = mapped_column(ARRAY(), nullable=False, default=list)
+    tags: Mapped[list[str]] = mapped_column(ARRAY(), nullable=False, default=list)
     rating: Mapped[Decimal | None] = mapped_column(Numeric(3, 2))
     total_quotes: Mapped[int] = mapped_column(Integer, nullable=False, default=0)
     awarded_quotes: Mapped[int] = mapped_column(Integer, nullable=False, default=0)

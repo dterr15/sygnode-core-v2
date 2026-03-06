@@ -14,6 +14,13 @@ from app.core.hashing import calculate_event_hash
 from app.models.case import CaseTimelineEvent
 
 
+def _ensure_utc(dt):
+    """SQLite strips tzinfo; restore UTC so hash calculation is consistent."""
+    if dt is not None and dt.tzinfo is None:
+        return dt.replace(tzinfo=timezone.utc)
+    return dt
+
+
 async def get_prev_hash(db: AsyncSession, case_id: uuid.UUID) -> str:
     """Get hash of the last event in the case timeline. Returns 'GENESIS' if no events."""
     result = await db.execute(
@@ -112,7 +119,7 @@ async def verify_chain_integrity(
             event_id=event.id,
             case_id=event.case_id,
             event_type=event.event_type,
-            event_timestamp=event.event_timestamp,
+            event_timestamp=_ensure_utc(event.event_timestamp),
             actor_role=event.actor_role,
             related_doc_ids=event.related_doc_ids,
             artifact_hash=event.artifact_hash,

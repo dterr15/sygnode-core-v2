@@ -2,10 +2,10 @@ import uuid
 from datetime import datetime, timezone
 
 from sqlalchemy import String, Text, DateTime, ForeignKey, Index
-from sqlalchemy.dialects.postgresql import UUID, JSONB
 from sqlalchemy.orm import Mapped, mapped_column
 
 from app.database import Base
+from app.db_types import UUIDType as UUID, JSONType as JSONB
 
 
 class AuditLog(Base):

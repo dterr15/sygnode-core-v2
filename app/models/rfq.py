@@ -6,7 +6,7 @@ from sqlalchemy import (
     String, Integer, Text, Numeric, DateTime, ForeignKey,
     UniqueConstraint, Index, CheckConstraint,
 )
-from sqlalchemy.dialects.postgresql import UUID, JSONB
+from app.db_types import UUIDType as UUID, JSONType as JSONB
 from sqlalchemy.orm import Mapped, mapped_column, relationship
 
 from app.database import Base
