@@ -12,6 +12,7 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { toast } from "sonner";
 import { ArrowLeft } from "lucide-react";
+import { formatDate } from "@/lib/utils";
 
 export default function IntakeDetailPage() {
   const { id } = useParams();
@@ -70,12 +71,12 @@ export default function IntakeDetailPage() {
                 </div>
                 <div className="flex gap-4 text-sm text-muted-foreground mt-1">
                   <span>Fuente: {list.source}</span>
-                  <span>Fecha: {list.created_at?.slice(0, 10)}</span>
+                  <span>Fecha: {formatDate(list.created_at)}</span>
                   {list.from_name && <span>De: {list.from_name}</span>}
                 </div>
                 {isApproved && list.validated_by_user_id && (
                   <p className="text-sm text-success mt-2">
-                    Aprobado el {list.validated_at?.slice(0, 10)}
+                    Aprobado el {formatDate(list.validated_at)}
                   </p>
                 )}
                 {list.rejected_reason && (

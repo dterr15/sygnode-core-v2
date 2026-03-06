@@ -14,6 +14,7 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from "
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { toast } from "sonner";
 import { ArrowLeft, Upload, Brain, Mail } from "lucide-react";
+import { formatCLP } from "@/lib/utils";
 
 export default function RFQDetailPage() {
   const { id } = useParams();
@@ -138,7 +139,7 @@ export default function RFQDetailPage() {
                       {quotes.map((q: any) => (
                         <TableRow key={q.id}>
                           <TableCell>{q.supplier_name}</TableCell>
-                          <TableCell className="font-mono">{q.total?.toLocaleString()}</TableCell>
+                          <TableCell className="font-mono">{formatCLP(q.total)}</TableCell>
                           <TableCell>{q.currency}</TableCell>
                           <TableCell><StatusBadge status={q.status} /></TableCell>
                         </TableRow>
@@ -198,7 +199,7 @@ export default function RFQDetailPage() {
                               <TableRow key={i}>
                                 <TableCell className="font-medium">{row.item}</TableCell>
                                 {row.prices?.map((p: any, j: number) => (
-                                  <TableCell key={j} className="font-mono">{p?.toLocaleString() ?? "-"}</TableCell>
+                                  <TableCell key={j} className="font-mono">{p != null ? formatCLP(p) : "-"}</TableCell>
                                 ))}
                               </TableRow>
                             ))}

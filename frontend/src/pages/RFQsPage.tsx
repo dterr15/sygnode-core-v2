@@ -1,4 +1,5 @@
 import { useNavigate } from "react-router-dom";
+import { formatDate } from "@/lib/utils";
 import { useRFQList } from "@/hooks/use-rfqs";
 import { AppShell } from "@/components/layout/AppShell";
 import { PageLoader } from "@/components/PageLoader";
@@ -42,7 +43,7 @@ export default function RFQsPage() {
                     <TableCell className="font-mono text-xs">{rfq.reference_code}</TableCell>
                     <TableCell className="font-medium">{rfq.title}</TableCell>
                     <TableCell><StatusBadge status={rfq.status} /></TableCell>
-                    <TableCell className="text-sm text-muted-foreground">{rfq.created_at?.slice(0, 10)}</TableCell>
+                    <TableCell className="text-sm text-muted-foreground">{formatDate(rfq.created_at)}</TableCell>
                   </TableRow>
                 ))}
               </TableBody>

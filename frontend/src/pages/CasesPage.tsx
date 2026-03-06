@@ -1,4 +1,5 @@
 import { useNavigate } from "react-router-dom";
+import { formatDate } from "@/lib/utils";
 import { useCaseList } from "@/hooks/use-cases";
 import { AppShell } from "@/components/layout/AppShell";
 import { PageLoader } from "@/components/PageLoader";
@@ -55,7 +56,7 @@ export default function CasesPage() {
                         <span className="text-muted-foreground text-xs">No</span>
                       )}
                     </TableCell>
-                    <TableCell className="text-sm text-muted-foreground">{c.created_at?.slice(0, 10)}</TableCell>
+                    <TableCell className="text-sm text-muted-foreground">{formatDate(c.created_at)}</TableCell>
                   </TableRow>
                 ))}
               </TableBody>

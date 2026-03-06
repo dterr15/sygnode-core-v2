@@ -13,6 +13,7 @@ import { Textarea } from "@/components/ui/textarea";
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { toast } from "sonner";
 import { ArrowLeft, Clock, FileText, AlertTriangle, Package, Lock, Download } from "lucide-react";
+import { formatDate, formatCLP } from "@/lib/utils";
 
 export default function CaseDetailPage() {
   const { id } = useParams();
@@ -65,7 +66,7 @@ export default function CaseDetailPage() {
                   </div>
                 </div>
                 {caseData.frozen_first_at && (
-                  <p className="text-xs text-muted-foreground">Congelado: {caseData.frozen_first_at?.slice(0, 10)}</p>
+                  <p className="text-xs text-muted-foreground">Congelado: {formatDate(caseData.frozen_first_at)}</p>
                 )}
                 {chainIntact !== undefined && (
                   <p className={`text-xs ${chainIntact ? "text-success" : "text-destructive"}`}>
@@ -97,7 +98,7 @@ export default function CaseDetailPage() {
                         <div className="flex gap-3 text-xs text-muted-foreground mt-1">
                           <span>{event.event_type}</span>
                           {event.actor_role && <span>{event.actor_role}</span>}
-                          <span>{event.event_timestamp?.slice(0, 16).replace("T", " ")}</span>
+                          <span>{formatDate(event.event_timestamp)} {event.event_timestamp?.slice(11, 16)}</span>
                           <span className="font-mono">{event.event_hash?.slice(0, 8)}</span>
                         </div>
                       </div>
@@ -118,7 +119,7 @@ export default function CaseDetailPage() {
                       <div>
                         <p className="text-sm font-medium">{ev.filename}</p>
                         <p className="text-xs text-muted-foreground">
-                          {ev.evidence_type} • SHA256: {ev.sha256_hash?.slice(0, 8)} • {ev.uploaded_at?.slice(0, 10)}
+                          {ev.evidence_type} • SHA256: {ev.sha256_hash?.slice(0, 8)} • {formatDate(ev.uploaded_at)}
                         </p>
                       </div>
                     </div>
@@ -151,7 +152,7 @@ export default function CaseDetailPage() {
                   <div className="space-y-2 text-sm">
                     <div className="grid grid-cols-2 gap-2">
                       {fulfillment.po_number && <div>N° OC: <strong>{fulfillment.po_number}</strong></div>}
-                      {fulfillment.total_amount != null && <div>Monto: <strong className="font-mono">{fulfillment.total_amount?.toLocaleString()} {fulfillment.currency}</strong></div>}
+                      {fulfillment.total_amount != null && <div>Monto: <strong className="font-mono">{formatCLP(fulfillment.total_amount)} {fulfillment.currency !== "CLP" ? fulfillment.currency : ""}</strong></div>}
                       {fulfillment.delta_pct != null && <div>Delta: <strong>{fulfillment.delta_pct}%</strong></div>}
                       <div>Reconciliación: <StatusBadge status={fulfillment.reconciliation_status} /></div>
                     </div>

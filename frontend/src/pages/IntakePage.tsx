@@ -11,6 +11,7 @@ import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from "@/components/ui/dialog";
 import { Textarea } from "@/components/ui/textarea";
 import { toast } from "sonner";
+import { formatDate } from "@/lib/utils";
 
 export default function IntakePage() {
   const navigate = useNavigate();
@@ -74,7 +75,7 @@ export default function IntakePage() {
                       >
                         <TableCell className="font-medium">{item.title}</TableCell>
                         <TableCell>{item.source}</TableCell>
-                        <TableCell className="text-sm text-muted-foreground">{item.created_at?.slice(0, 10)}</TableCell>
+                        <TableCell className="text-sm text-muted-foreground">{formatDate(item.created_at)}</TableCell>
                         <TableCell>{item.item_count ?? "-"}</TableCell>
                         <TableCell><StatusBadge status={item.validation_status || item.status} /></TableCell>
                         <TableCell className="text-right" onClick={(e) => e.stopPropagation()}>
@@ -83,13 +84,14 @@ export default function IntakePage() {
                               <Button
                                 size="sm"
                                 variant="outline"
+                                disabled={approveMut.isPending}
                                 onClick={() => {
                                   approveMut.mutate(item.id, {
                                     onSuccess: () => toast.success("Requerimiento aprobado"),
                                   });
                                 }}
                               >
-                                Aprobar
+                                {approveMut.isPending ? "Aprobando..." : "Aprobar"}
                               </Button>
                               <Button
                                 size="sm"
