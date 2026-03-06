@@ -19,7 +19,7 @@ export function useIntakeDetail(id: string | undefined) {
 export function useIntakeApprove() {
   const qc = useQueryClient();
   return useMutation({
-    mutationFn: (id: string) => api.post(`/api/v2/intake/${id}/approve`),
+    mutationFn: (id: string) => api.post(`/api/v2/intake/${id}/approve`, {}),
     onSuccess: () => qc.invalidateQueries({ queryKey: ["intake"] }),
   });
 }

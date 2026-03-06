@@ -49,11 +49,13 @@ export const api = {
   },
 
   async post<T = any>(path: string, body?: any): Promise<T> {
+    const isForm = body instanceof FormData;
     const res = await fetch(`${BASE_URL}${path}`, {
       method: "POST",
       credentials: "include",
-      headers: body instanceof FormData ? {} : { "Content-Type": "application/json" },
-      body: body instanceof FormData ? body : body ? JSON.stringify(body) : undefined,
+      headers: isForm ? {} : { "Content-Type": "application/json" },
+      // Always send "{}" for JSON POSTs without body so FastAPI can parse Pydantic schemas
+      body: isForm ? body : JSON.stringify(body ?? {}),
     });
     return handleResponse(res);
   },

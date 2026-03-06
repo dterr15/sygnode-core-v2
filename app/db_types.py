@@ -40,18 +40,34 @@ class JSONType(TypeDecorator):
 
 
 class ArrayType(TypeDecorator):
-    """ARRAY-compatible type that stores as JSON TEXT on SQLite."""
+    """ARRAY(Text)-compatible type: native ARRAY on PostgreSQL, TEXT on SQLite."""
     impl = Text
     cache_ok = True
 
+    def load_dialect_impl(self, dialect):
+        if dialect.name == "postgresql":
+            from sqlalchemy.dialects.postgresql import ARRAY as PG_ARRAY
+            from sqlalchemy import Text as PG_Text
+            return dialect.type_descriptor(PG_ARRAY(PG_Text))
+        return dialect.type_descriptor(Text())
+
     def process_bind_param(self, value, dialect):
+        if dialect.name == "postgresql":
+            # Pass list directly; asyncpg handles TEXT[] natively
+            if value is None:
+                return []
+            return [str(v) for v in value]
         if value is None:
             return json.dumps([])
         return json.dumps([str(v) if not isinstance(v, str) else v for v in value], default=str)
 
     def process_result_value(self, value, dialect):
+        if dialect.name == "postgresql":
+            return value if value is not None else []
         if value is None:
             return []
+        if isinstance(value, list):
+            return value
         try:
             return json.loads(value)
         except (json.JSONDecodeError, TypeError):
