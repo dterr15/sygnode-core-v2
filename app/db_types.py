@@ -12,18 +12,30 @@ from sqlalchemy.types import TypeDecorator, UserDefinedType
 
 
 class JSONType(TypeDecorator):
-    """JSONB-compatible type that stores as TEXT on SQLite."""
+    """JSONB-compatible type: native JSONB on PostgreSQL, TEXT on SQLite."""
     impl = Text
     cache_ok = True
+
+    def load_dialect_impl(self, dialect):
+        if dialect.name == "postgresql":
+            from sqlalchemy.dialects.postgresql import JSONB as PG_JSONB
+            return dialect.type_descriptor(PG_JSONB())
+        return dialect.type_descriptor(Text())
 
     def process_bind_param(self, value, dialect):
         if value is None:
             return None
+        if dialect.name == "postgresql":
+            return value  # pass dict directly; asyncpg handles JSONB natively
         return json.dumps(value, default=str)
 
     def process_result_value(self, value, dialect):
         if value is None:
             return None
+        if dialect.name == "postgresql":
+            return value  # asyncpg already deserializes JSONB to dict
+        if isinstance(value, (dict, list)):
+            return value
         return json.loads(value)
 
 
