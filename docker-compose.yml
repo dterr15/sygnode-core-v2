@@ -46,5 +46,25 @@ services:
     volumes:
       - ./app:/app/app  # Hot reload
 
+  mcp:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    command: python app/mcp_server.py
+    depends_on:
+      db:
+        condition: service_healthy
+    ports:
+      - "8001:8001"
+    environment:
+      DATABASE_URL: postgresql+asyncpg://sygnode:${DB_PASSWORD:-sygnode_dev_2026}@db:5432/sygnode
+      DATABASE_URL_SYNC: postgresql://sygnode:${DB_PASSWORD:-sygnode_dev_2026}@db:5432/sygnode
+      JWT_SECRET: ${JWT_SECRET:-dev-secret-change-in-production}
+      GEMINI_API_KEY: ${GEMINI_API_KEY:-}
+      DATAROOM_ENABLED: ${DATAROOM_ENABLED:-false}
+      ENVIRONMENT: development
+    volumes:
+      - ./app:/app/app  # Hot reload
+
 volumes:
   postgres_data:
