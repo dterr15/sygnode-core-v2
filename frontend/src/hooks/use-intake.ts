@@ -42,6 +42,15 @@ export function useIntakeTransition(id: string | undefined) {
   });
 }
 
+export function useIntakePaste() {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: ({ text, source }: { text: string; source: string }) =>
+      api.post("/api/v2/intake/paste", { text, source }),
+    onSuccess: () => qc.invalidateQueries({ queryKey: ["intake"] }),
+  });
+}
+
 export function useIntakePatchItem(listId: string | undefined) {
   const qc = useQueryClient();
   return useMutation({

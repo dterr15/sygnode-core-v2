@@ -1,6 +1,6 @@
 import { useState } from "react";
 import { useNavigate } from "react-router-dom";
-import { useIntakeList, useIntakeApprove, useIntakeReject } from "@/hooks/use-intake";
+import { useIntakeList, useIntakeApprove, useIntakeReject, useIntakePaste } from "@/hooks/use-intake";
 import { AppShell } from "@/components/layout/AppShell";
 import { PageLoader } from "@/components/PageLoader";
 import { PageError } from "@/components/PageError";
@@ -17,17 +17,23 @@ export default function IntakePage() {
   const [tab, setTab] = useState("STAGED_PENDING_VALIDATION");
   const [rejectId, setRejectId] = useState<string | null>(null);
   const [reason, setReason] = useState("");
+  const [pasteOpen, setPasteOpen] = useState(false);
+  const [pasteText, setPasteText] = useState("");
 
   const { data, isLoading, isError, refetch } = useIntakeList(tab);
   const approveMut = useIntakeApprove();
   const rejectMut = useIntakeReject();
+  const pasteMut = useIntakePaste();
 
   const items = data?.items || [];
 
   return (
     <AppShell>
       <div className="space-y-4">
-        <h1 className="text-2xl font-bold">Intake — Requerimientos</h1>
+        <div className="flex items-center justify-between">
+          <h1 className="text-2xl font-bold">Intake — Requerimientos</h1>
+          <Button onClick={() => setPasteOpen(true)}>+ Nuevo requerimiento</Button>
+        </div>
 
         <Tabs value={tab} onValueChange={setTab}>
           <TabsList>
@@ -105,6 +111,37 @@ export default function IntakePage() {
           </TabsContent>
         </Tabs>
       </div>
+
+      <Dialog open={pasteOpen} onOpenChange={(o) => { setPasteOpen(o); if (!o) setPasteText(""); }}>
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle>Nuevo requerimiento</DialogTitle>
+          </DialogHeader>
+          <Textarea
+            placeholder="Pega aquí el texto del requerimiento (email, WhatsApp, etc.)..."
+            value={pasteText}
+            onChange={(e) => setPasteText(e.target.value)}
+            rows={6}
+          />
+          <DialogFooter>
+            <Button variant="outline" onClick={() => { setPasteOpen(false); setPasteText(""); }}>Cancelar</Button>
+            <Button
+              disabled={!pasteText.trim() || pasteMut.isPending}
+              onClick={() => {
+                pasteMut.mutate({ text: pasteText, source: "manual" }, {
+                  onSuccess: () => {
+                    toast.success("Requerimiento creado");
+                    setPasteOpen(false);
+                    setPasteText("");
+                  },
+                });
+              }}
+            >
+              Crear requerimiento
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
 
       <Dialog open={!!rejectId} onOpenChange={() => setRejectId(null)}>
         <DialogContent>
