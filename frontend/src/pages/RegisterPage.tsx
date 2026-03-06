@@ -23,8 +23,24 @@ export default function RegisterPage() {
   const set = (key: string) => (e: React.ChangeEvent<HTMLInputElement>) =>
     setForm((f) => ({ ...f, [key]: e.target.value }));
 
+  const validate = (): Record<string, string> => {
+    const e: Record<string, string> = {};
+    if (!form.nombre_organizacion.trim()) e.nombre_organizacion = "Requerido";
+    if (!form.rut_organizacion.trim() || form.rut_organizacion.trim().length < 5)
+      e.rut_organizacion = "RUT inválido (mínimo 5 caracteres)";
+    if (!form.name.trim()) e.name = "Requerido";
+    if (!form.email.trim()) e.email = "Requerido";
+    if (form.password.length < 8) e.password = "Mínimo 8 caracteres";
+    return e;
+  };
+
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
+    const clientErrors = validate();
+    if (Object.keys(clientErrors).length > 0) {
+      setErrors(clientErrors);
+      return;
+    }
     setLoading(true);
     setErrors({});
     try {
@@ -34,10 +50,12 @@ export default function RegisterPage() {
     } catch (err) {
       if (err instanceof ApiError && err.status === 422 && err.errors) {
         const mapped: Record<string, string> = {};
-        for (const [k, v] of Object.entries(err.errors)) mapped[k] = Array.isArray(v) ? v[0] : v;
+        for (const [k, v] of Object.entries(err.errors)) mapped[k] = Array.isArray(v) ? v[0] : String(v);
         setErrors(mapped);
       } else if (err instanceof ApiError) {
-        toast.error(err.detail);
+        toast.error(err.detail || "Error al registrar");
+      } else {
+        toast.error("Error de conexión");
       }
     } finally {
       setLoading(false);

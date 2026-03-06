@@ -26,7 +26,20 @@ async function handleResponse(res: Response) {
     throw new ApiError(401, "Sesión expirada");
   }
 
-  throw new ApiError(res.status, body.detail || "Error desconocido", body.errors);
+  // FastAPI 422: detail is an array of {loc, msg, type}
+  // Parse into { fieldName: message } map for form error display
+  if (res.status === 422 && Array.isArray(body.detail)) {
+    const errors: Record<string, string[]> = {};
+    for (const err of body.detail) {
+      // loc is e.g. ["body", "password"] — take last element as field name
+      const field = err.loc?.[err.loc.length - 1] ?? "error";
+      errors[field] = errors[field] ? [...errors[field], err.msg] : [err.msg];
+    }
+    throw new ApiError(422, "Error de validación", errors);
+  }
+
+  const detail = typeof body.detail === "string" ? body.detail : "Error desconocido";
+  throw new ApiError(res.status, detail, body.errors);
 }
 
 export const api = {
