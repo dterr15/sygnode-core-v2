@@ -87,7 +87,10 @@ export default function IntakePage() {
                                 disabled={approveMut.isPending}
                                 onClick={() => {
                                   approveMut.mutate(item.id, {
-                                    onSuccess: () => toast.success("Requerimiento aprobado"),
+                                    onSuccess: (data: any) => {
+                                      toast.success("Caso y RFQ creados exitosamente");
+                                      navigate(`/rfqs/${data.rfq_id}`);
+                                    },
                                   });
                                 }}
                               >

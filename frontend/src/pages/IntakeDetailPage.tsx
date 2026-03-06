@@ -144,35 +144,20 @@ export default function IntakeDetailPage() {
                   <Button
                     onClick={() =>
                       approveMut.mutate(list.id, {
-                        onSuccess: () => {
-                          toast.success("Aprobado");
-                          refetch();
+                        onSuccess: (data: any) => {
+                          toast.success("Caso y RFQ creados exitosamente");
+                          navigate(`/rfqs/${data.rfq_id}`);
                         },
                       })
                     }
                     disabled={approveMut.isPending}
                   >
-                    Aprobar
+                    {approveMut.isPending ? "Aprobando..." : "Aprobar"}
                   </Button>
                   <Button variant="destructive" onClick={() => navigate(`/intake`)}>
                     Rechazar
                   </Button>
                 </>
-              )}
-              {isApproved && (
-                <Button
-                  onClick={() =>
-                    transitionMut.mutate("EN_COTIZACION", {
-                      onSuccess: () => {
-                        toast.success("Promovido a RFQ");
-                        navigate("/rfqs");
-                      },
-                    })
-                  }
-                  disabled={transitionMut.isPending}
-                >
-                  Promover a RFQ
-                </Button>
               )}
             </div>
           </>

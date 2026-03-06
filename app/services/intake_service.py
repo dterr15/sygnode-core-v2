@@ -8,6 +8,7 @@ import hashlib
 import re
 import uuid
 from datetime import datetime, timezone
+from decimal import Decimal
 
 from fastapi import HTTPException
 from sqlalchemy import select, func
@@ -19,7 +20,10 @@ from app.core.state_machines import (
 )
 from app.models.intake import IntakeList, IntakeItem
 from app.models.case import DecisionCase
+from app.models.rfq import RFQ
 from app.models.user import User
+from app.schemas.rfq import RFQCreate, RFQItemInput
+from app.services.rfq_service import create_rfq
 from app.services.timeline_service import append_timeline_event
 
 
@@ -87,10 +91,10 @@ async def approve_intake(
     list_id: uuid.UUID,
     user: User,
     notes: str | None = None,
-) -> tuple[IntakeList, DecisionCase]:
+) -> tuple[IntakeList, DecisionCase, RFQ]:
     """
     Approve an intake list — G3: validated_by_user_id set with real user.
-    Creates a DecisionCase and first timeline event.
+    Creates a DecisionCase + RFQ (with intake items) in a single transaction.
     """
     intake = await _get_intake_or_404(db, list_id, user.organization_id)
 
@@ -117,6 +121,26 @@ async def approve_intake(
     db.add(case)
     await db.flush()
 
+    # Create RFQ from intake items (same transaction)
+    rfq_data = RFQCreate(
+        title=intake.title,
+        description=intake.context_body[:500] if intake.context_body else None,
+        client_id=intake.client_id,
+        items=[
+            RFQItemInput(
+                description=it.description,
+                quantity=it.quantity if it.quantity is not None else Decimal("1"),
+                unit=it.uom,
+            )
+            for it in intake.items
+        ],
+    )
+    rfq = await create_rfq(db, rfq_data, user)
+
+    # Link RFQ to Case via primary_rfq_id
+    case.primary_rfq_id = rfq.id
+    await db.flush()
+
     # First timeline event
     await append_timeline_event(
         db=db,
@@ -125,11 +149,11 @@ async def approve_intake(
         description=f"Caso creado desde intake '{intake.title}'",
         actor_user_id=user.id,
         actor_role=user.role,
-        metadata={"notes": notes, "intake_list_id": str(intake.id)},
+        metadata={"notes": notes, "intake_list_id": str(intake.id), "rfq_id": str(rfq.id)},
     )
 
     await db.flush()
-    return intake, case
+    return intake, case, rfq
 
 
 async def reject_intake(

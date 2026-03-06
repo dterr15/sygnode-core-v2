@@ -26,6 +26,12 @@ class IntakeApproveRequest(BaseModel):
     notes: str | None = None
 
 
+class IntakeApproveResponse(BaseModel):
+    success: bool
+    case_id: UUID
+    rfq_id: UUID
+
+
 class IntakeRejectRequest(BaseModel):
     reason: str = Field(..., min_length=1)
 

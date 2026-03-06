@@ -1,4 +1,4 @@
-"""T6: Approve intake → creates DecisionCase + CASE_CREATED event."""
+"""T6: Approve intake → creates DecisionCase + RFQ + CASE_CREATED event."""
 
 import pytest
 
@@ -20,6 +20,7 @@ async def test_approve_intake(auth_client):
     data = approve_resp.json()
     assert data["success"] is True
     assert "case_id" in data
+    assert "rfq_id" in data  # RFQ created atomically with Case
 
     # Verify intake status changed
     detail_resp = await auth_client.get(f"/api/v2/intake/{list_id}")

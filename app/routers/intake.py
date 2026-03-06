@@ -9,7 +9,7 @@ from app.database import get_db
 from app.middleware.auth import CurrentUser
 from app.models.intake import IntakeList, IntakeItem
 from app.schemas.intake import (
-    IntakePasteRequest, IntakeApproveRequest, IntakeRejectRequest,
+    IntakePasteRequest, IntakeApproveRequest, IntakeApproveResponse, IntakeRejectRequest,
     IntakeTransitionRequest, IntakeItemUpdate,
     IntakeListOut, IntakeItemOut, IntakeDetailOut,
 )
@@ -94,17 +94,17 @@ async def paste_intake(
     return {"list_id": intake.id, "item_count": item_count}
 
 
-@router.post("/{list_id}/approve")
+@router.post("/{list_id}/approve", response_model=IntakeApproveResponse)
 async def approve(
     list_id: uuid.UUID,
     data: IntakeApproveRequest,
     current_user: CurrentUser = None,
     db: AsyncSession = Depends(get_db),
 ):
-    """T6: Approve intake → create DecisionCase + first timeline event."""
-    intake, case = await approve_intake(db, list_id, current_user, data.notes)
+    """T6: Approve intake → create DecisionCase + RFQ (with intake items) in one transaction."""
+    intake, case, rfq = await approve_intake(db, list_id, current_user, data.notes)
     await db.commit()
-    return {"success": True, "case_id": case.id}
+    return IntakeApproveResponse(success=True, case_id=case.id, rfq_id=rfq.id)
 
 
 @router.post("/{list_id}/reject")
