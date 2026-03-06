@@ -25,7 +25,7 @@ services:
       db:
         condition: service_healthy
     ports:
-      - "5433:5432"
+      - "8000:8000"
     environment:
       DATABASE_URL: postgresql+asyncpg://sygnode:${DB_PASSWORD:-sygnode_dev_2026}@db:5432/sygnode
       DATABASE_URL_SYNC: postgresql://sygnode:${DB_PASSWORD:-sygnode_dev_2026}@db:5432/sygnode
@@ -38,7 +38,7 @@ services:
       GWS_IMPERSONATE_USER: ${GWS_IMPERSONATE_USER:-}
       GWS_PROJECT_ID: ${GWS_PROJECT_ID:-}
       GMAIL_WEBHOOK_TOKEN: ${GMAIL_WEBHOOK_TOKEN:-dev-hmac-token}
-      CORS_ORIGINS: "http://localhost:3000,http://localhost:5173,https://sygnode-core-engine.pages.dev"
+      CORS_ORIGINS: "http://localhost:3000,http://localhost:5173,http://localhost:8080,https://sygnode-core-engine.pages.dev"      
       DATAROOM_API_URL: ${DATAROOM_API_URL:-}
       DATAROOM_API_KEY: ${DATAROOM_API_KEY:-}
       DATAROOM_ENABLED: ${DATAROOM_ENABLED:-false}

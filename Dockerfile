@@ -15,4 +15,4 @@ RUN pip install --no-cache-dir -r requirements.txt
 COPY . .
 
 # Create tables on startup and run
-CMD ["sh", "-c", "PYTHONPATH=/app python scripts/init_db.py && uvicorn app.main:app --host 0.0.0.0 --port 8000 --reload"]
+CMD ["uvicorn", "app.main:app", "--host", "0.0.0.0", "--port", "8000", "--reload"]
