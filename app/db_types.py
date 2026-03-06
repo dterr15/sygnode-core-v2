@@ -40,22 +40,34 @@ class JSONType(TypeDecorator):
 
 
 class ArrayType(TypeDecorator):
-    """ARRAY(Text)-compatible type: native ARRAY on PostgreSQL, TEXT on SQLite."""
+    """ARRAY-compatible type: native ARRAY on PostgreSQL, TEXT on SQLite.
+
+    item_type: "text" (default) or "uuid" — controls the PostgreSQL element type.
+    """
     impl = Text
     cache_ok = True
+
+    def __init__(self, item_type: str = "text", *args, **kwargs):
+        self.item_type = item_type
+        super().__init__(*args, **kwargs)
 
     def load_dialect_impl(self, dialect):
         if dialect.name == "postgresql":
             from sqlalchemy.dialects.postgresql import ARRAY as PG_ARRAY
+            if self.item_type == "uuid":
+                from sqlalchemy.dialects.postgresql import UUID as PG_UUID
+                return dialect.type_descriptor(PG_ARRAY(PG_UUID(as_uuid=True)))
             from sqlalchemy import Text as PG_Text
             return dialect.type_descriptor(PG_ARRAY(PG_Text))
         return dialect.type_descriptor(Text())
 
     def process_bind_param(self, value, dialect):
         if dialect.name == "postgresql":
-            # Pass list directly; asyncpg handles TEXT[] natively
             if value is None:
                 return []
+            if self.item_type == "uuid":
+                # asyncpg expects UUID objects or strings for uuid[] columns
+                return [v if isinstance(v, _uuid.UUID) else _uuid.UUID(str(v)) for v in value]
             return [str(v) for v in value]
         if value is None:
             return json.dumps([])
@@ -63,7 +75,12 @@ class ArrayType(TypeDecorator):
 
     def process_result_value(self, value, dialect):
         if dialect.name == "postgresql":
-            return value if value is not None else []
+            if value is None:
+                return []
+            if self.item_type == "uuid":
+                # Ensure UUID objects come back (asyncpg may return them already)
+                return [v if isinstance(v, _uuid.UUID) else _uuid.UUID(str(v)) for v in value]
+            return value
         if value is None:
             return []
         if isinstance(value, list):
@@ -117,6 +134,6 @@ def get_jsonb():
     return JSONType()
 
 
-def get_array(item_type=None):
-    """Return an ARRAY-compatible type."""
-    return ArrayType()
+def get_array(item_type: str = "text"):
+    """Return an ARRAY-compatible type. item_type: 'text' or 'uuid'."""
+    return ArrayType(item_type=item_type)

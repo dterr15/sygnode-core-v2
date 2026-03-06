@@ -78,7 +78,7 @@ class CaseTimelineEvent(Base):
     event_hash: Mapped[str] = mapped_column(String(64), nullable=False, unique=True)
     artifact_hash: Mapped[str | None] = mapped_column(String(64))
     related_doc_ids: Mapped[list[uuid.UUID]] = mapped_column(
-        ARRAY(), nullable=False, default=list
+        ARRAY("uuid"), nullable=False, default=list
     )
 
     case = relationship("DecisionCase", back_populates="timeline_events")
