@@ -17,6 +17,7 @@ class RFQItemOut(BaseModel):
     quantity: Decimal
     unit: str
     sort_order: int
+    supplier_ids: list[UUID] = []
 
     model_config = {"from_attributes": True}
 
@@ -51,11 +52,36 @@ class RFQOut(BaseModel):
     model_config = {"from_attributes": True}
 
 
+class RFQItemSuppliersRequest(BaseModel):
+    supplier_ids: list[UUID]
+
+
+class RFQAddSupplierRequest(BaseModel):
+    supplier_id: UUID
+
+
+class RFQSendEmailsRequest(BaseModel):
+    supplier_ids: list[UUID]
+
+
+class EmailLogOut(BaseModel):
+    id: UUID
+    supplier_id: UUID | None = None
+    recipient_email: str
+    status: str
+    message_id: str | None = None
+    sent_at: datetime | None = None
+    error_message: str | None = None
+    created_at: datetime
+
+    model_config = {"from_attributes": True}
+
+
 class RFQDetailOut(BaseModel):
     rfq: RFQOut
     items: list[RFQItemOut]
     quotes: list["QuoteOut"] = []
-    email_status: list[dict] = []
+    email_status: list[EmailLogOut] = []
 
 
 # Forward ref resolved after QuoteOut is imported

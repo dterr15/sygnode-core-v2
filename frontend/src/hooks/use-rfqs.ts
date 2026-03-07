@@ -34,9 +34,29 @@ export function useRFQAnalyze(id: string | undefined) {
 }
 
 export function useRFQSendEmails(id: string | undefined) {
+  const qc = useQueryClient();
   return useMutation({
     mutationFn: (supplier_ids: string[]) =>
       api.post(`/api/v2/rfqs/${id}/send-emails`, { supplier_ids }),
+    onSuccess: () => qc.invalidateQueries({ queryKey: ["rfq", id] }),
+  });
+}
+
+export function useRFQAddSupplier(id: string | undefined) {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: (supplier_id: string) =>
+      api.post(`/api/v2/rfqs/${id}/suppliers`, { supplier_id }),
+    onSuccess: () => qc.invalidateQueries({ queryKey: ["rfq", id] }),
+  });
+}
+
+export function useRFQItemSetSuppliers(rfq_id: string | undefined) {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: ({ item_id, supplier_ids }: { item_id: string; supplier_ids: string[] }) =>
+      api.put(`/api/v2/rfqs/${rfq_id}/items/${item_id}/suppliers`, { supplier_ids }),
+    onSuccess: () => qc.invalidateQueries({ queryKey: ["rfq", rfq_id] }),
   });
 }
 

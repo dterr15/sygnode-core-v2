@@ -1,6 +1,6 @@
 import { useState, useRef } from "react";
 import { useParams, useNavigate } from "react-router-dom";
-import { useRFQDetail, useRFQAnalyze, useRFQSendEmails, useQuoteUpload, useQuoteProcess } from "@/hooks/use-rfqs";
+import { useRFQDetail, useRFQAnalyze, useRFQSendEmails, useRFQAddSupplier, useRFQItemSetSuppliers, useQuoteUpload, useQuoteProcess } from "@/hooks/use-rfqs";
 import { useSupplierList } from "@/hooks/use-suppliers";
 import { AppShell } from "@/components/layout/AppShell";
 import { PageLoader } from "@/components/PageLoader";
@@ -22,6 +22,7 @@ export default function RFQDetailPage() {
   const fileRef = useRef<HTMLInputElement>(null);
   const [uploadOpen, setUploadOpen] = useState(false);
   const [selectedSupplier, setSelectedSupplier] = useState("");
+  const [selectedSupplierId, setSelectedSupplierId] = useState("");
   const [extractedItems, setExtractedItems] = useState<any[] | null>(null);
 
   const { data, isLoading, isError, refetch } = useRFQDetail(id);
@@ -30,6 +31,8 @@ export default function RFQDetailPage() {
   const processMut = useQuoteProcess();
   const analyzeMut = useRFQAnalyze(id);
   const emailMut = useRFQSendEmails(id);
+  const addSupplierMut = useRFQAddSupplier(id);
+  const setSuppliersMut = useRFQItemSetSuppliers(id);
 
   // Backend returns { rfq, items, quotes, email_status }
   const rfq = data?.rfq;
@@ -90,6 +93,7 @@ export default function RFQDetailPage() {
                 <TabsTrigger value="items">Ítems</TabsTrigger>
                 <TabsTrigger value="quotes">Cotizaciones</TabsTrigger>
                 <TabsTrigger value="analysis">Análisis</TabsTrigger>
+                <TabsTrigger value="suppliers">Proveedores</TabsTrigger>
                 <TabsTrigger value="emails">Emails</TabsTrigger>
               </TabsList>
 
@@ -220,27 +224,181 @@ export default function RFQDetailPage() {
                 )}
               </TabsContent>
 
-              <TabsContent value="emails" className="mt-4 space-y-4">
-                <Button
-                  onClick={() => {
-                    const ids = supplierList.map((s: any) => s.id);
-                    emailMut.mutate(ids, { onSuccess: () => toast.success("Emails enviados") });
-                  }}
-                  disabled={emailMut.isPending}
-                  className="gap-2"
-                >
-                  <Mail className="h-4 w-4" /> Enviar emails a proveedores
-                </Button>
+              <TabsContent value="suppliers" className="mt-4 space-y-3">
+                {rfqItems.length === 0 && (
+                  <p className="text-sm text-muted-foreground">Este RFQ no tiene ítems todavía.</p>
+                )}
+                {rfqItems.map((item: any) => {
+                  const assignedIds: string[] = item.supplier_ids || [];
+                  return (
+                    <Card key={item.id}>
+                      <CardHeader className="pb-2">
+                        <div className="flex items-start justify-between gap-2">
+                          <div>
+                            <CardTitle className="text-sm font-semibold">{item.description}</CardTitle>
+                            <p className="text-xs text-muted-foreground mt-0.5">
+                              {item.quantity} {item.unit}
+                            </p>
+                          </div>
+                        </div>
+                      </CardHeader>
+                      <CardContent className="pt-0 space-y-3">
+                        {/* Assigned supplier badges */}
+                        {assignedIds.length > 0 && (
+                          <div className="flex flex-wrap gap-1.5">
+                            {assignedIds.map((sid: string) => {
+                              const sup = supplierList.find((s: any) => s.id === sid);
+                              return (
+                                <span
+                                  key={sid}
+                                  className="inline-flex items-center gap-1 rounded-full bg-blue-50 text-blue-700 border border-blue-200 px-2.5 py-0.5 text-xs font-medium"
+                                >
+                                  {sup?.name ?? sid.slice(0, 8)}
+                                  <button
+                                    className="ml-0.5 hover:text-blue-900 font-bold leading-none"
+                                    title="Quitar proveedor"
+                                    disabled={setSuppliersMut.isPending}
+                                    onClick={() =>
+                                      setSuppliersMut.mutate({
+                                        item_id: item.id,
+                                        supplier_ids: assignedIds.filter((s) => s !== sid),
+                                      })
+                                    }
+                                  >
+                                    ×
+                                  </button>
+                                </span>
+                              );
+                            })}
+                          </div>
+                        )}
 
-                {data?.email_status && data.email_status.length > 0 && (
-                  <div className="rounded-lg border bg-card p-4 space-y-2">
-                    {data.email_status.map((es: any, i: number) => (
-                      <div key={i} className="flex justify-between text-sm border-b last:border-0 pb-2">
-                        <span>{es.supplier_name || es.email}</span>
-                        <StatusBadge status={es.status} />
-                      </div>
-                    ))}
-                  </div>
+                        {/* Add supplier dropdown */}
+                        <div className="flex gap-2">
+                          <Select
+                            onValueChange={(newSupplierId) => {
+                              if (!newSupplierId || assignedIds.includes(newSupplierId)) return;
+                              setSuppliersMut.mutate({
+                                item_id: item.id,
+                                supplier_ids: [...assignedIds, newSupplierId],
+                              });
+                            }}
+                          >
+                            <SelectTrigger className="w-56 h-8 text-xs">
+                              <SelectValue placeholder="+ Agregar proveedor" />
+                            </SelectTrigger>
+                            <SelectContent>
+                              {supplierList
+                                .filter((s: any) => !assignedIds.includes(s.id))
+                                .map((s: any) => (
+                                  <SelectItem key={s.id} value={s.id} className="text-xs">
+                                    {s.name}
+                                  </SelectItem>
+                                ))}
+                            </SelectContent>
+                          </Select>
+                        </div>
+                      </CardContent>
+                    </Card>
+                  );
+                })}
+              </TabsContent>
+
+              <TabsContent value="emails" className="mt-4 space-y-4">
+                {/* Add supplier to RFQ */}
+                <div className="flex gap-2">
+                  <Select value={selectedSupplierId} onValueChange={setSelectedSupplierId}>
+                    <SelectTrigger className="w-64"><SelectValue placeholder="Seleccionar proveedor" /></SelectTrigger>
+                    <SelectContent>
+                      {supplierList.map((s: any) => (
+                        <SelectItem key={s.id} value={s.id}>{s.name}</SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
+                  <Button
+                    disabled={!selectedSupplierId || addSupplierMut.isPending}
+                    onClick={() => {
+                      addSupplierMut.mutate(selectedSupplierId, {
+                        onSuccess: () => {
+                          toast.success("Proveedor agregado");
+                          setSelectedSupplierId("");
+                        },
+                      });
+                    }}
+                  >
+                    Agregar a RFQ
+                  </Button>
+                </div>
+
+                {/* Table of assigned suppliers */}
+                {quotes.length > 0 && (
+                  <>
+                    <div className="rounded-lg border bg-card">
+                      <Table>
+                        <TableHeader>
+                          <TableRow>
+                            <TableHead>Proveedor</TableHead>
+                            <TableHead>Email</TableHead>
+                            <TableHead>Estado</TableHead>
+                            <TableHead>Acciones</TableHead>
+                          </TableRow>
+                        </TableHeader>
+                        <TableBody>
+                          {quotes.map((q: any) => {
+                            const supplier = supplierList.find((s: any) => s.id === q.supplier_id);
+                            const emailStatus = data?.email_status;
+                            const log = Array.isArray(emailStatus)
+                              ? emailStatus.find((l: any) => l.supplier_id === q.supplier_id)
+                              : undefined;
+                            return (
+                              <TableRow key={q.id}>
+                                <TableCell>{supplier?.name ?? "Proveedor"}</TableCell>
+                                <TableCell className="text-sm text-muted-foreground">{supplier?.email ?? "—"}</TableCell>
+                                <TableCell>
+                                  {log ? <StatusBadge status={log.status} /> : <span className="text-xs text-muted-foreground">Sin enviar</span>}
+                                </TableCell>
+                                <TableCell>
+                                  <Button
+                                    size="sm"
+                                    variant="outline"
+                                    disabled={emailMut.isPending}
+                                    onClick={() =>
+                                      emailMut.mutate([q.supplier_id], {
+                                        onSuccess: () => toast.success("Email enviado"),
+                                      })
+                                    }
+                                    className="gap-1"
+                                  >
+                                    <Mail className="h-3 w-3" /> Enviar
+                                  </Button>
+                                </TableCell>
+                              </TableRow>
+                            );
+                          })}
+                        </TableBody>
+                      </Table>
+                    </div>
+
+                    {/* Send to all */}
+                    <Button
+                      onClick={() =>
+                        emailMut.mutate(
+                          quotes.map((q: any) => q.supplier_id),
+                          { onSuccess: () => toast.success("Emails enviados a todos") }
+                        )
+                      }
+                      disabled={emailMut.isPending}
+                      className="gap-2"
+                    >
+                      <Mail className="h-4 w-4" /> Enviar a todos
+                    </Button>
+                  </>
+                )}
+
+                {quotes.length === 0 && (
+                  <p className="text-sm text-muted-foreground">
+                    Agrega proveedores para poder enviarles la solicitud de cotización.
+                  </p>
                 )}
               </TabsContent>
             </Tabs>

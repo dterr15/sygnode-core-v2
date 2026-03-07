@@ -1,5 +1,6 @@
 """Alembic env.py — async configuration."""
 
+import os
 from logging.config import fileConfig
 
 from sqlalchemy import pool
@@ -10,6 +11,11 @@ from alembic import context
 config = context.config
 if config.config_file_name is not None:
     fileConfig(config.config_file_name)
+
+# Override sqlalchemy.url from DATABASE_URL env var if present (must use asyncpg driver)
+_db_url = os.environ.get("DATABASE_URL")
+if _db_url:
+    config.set_main_option("sqlalchemy.url", _db_url)
 
 # Import all models so Alembic can detect them
 from app.database import Base

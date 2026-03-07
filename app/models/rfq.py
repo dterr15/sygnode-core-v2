@@ -6,7 +6,7 @@ from sqlalchemy import (
     String, Integer, Text, Numeric, DateTime, ForeignKey,
     UniqueConstraint, Index, CheckConstraint,
 )
-from app.db_types import UUIDType as UUID, JSONType as JSONB
+from app.db_types import UUIDType as UUID, JSONType as JSONB, ArrayType as ARRAY
 from sqlalchemy.orm import Mapped, mapped_column, relationship
 
 from app.database import Base
@@ -56,6 +56,7 @@ class RFQItem(Base):
     quantity: Mapped[Decimal] = mapped_column(Numeric(12, 4), nullable=False)
     unit: Mapped[str] = mapped_column(String(50), nullable=False)
     sort_order: Mapped[int] = mapped_column(Integer, nullable=False, default=0)
+    supplier_ids: Mapped[list[uuid.UUID]] = mapped_column(ARRAY("uuid"), nullable=False, default=list)
     created_at: Mapped[datetime] = mapped_column(
         DateTime(timezone=True), nullable=False, default=lambda: datetime.now(timezone.utc)
     )
