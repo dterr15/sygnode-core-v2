@@ -24,6 +24,8 @@ export default function RFQDetailPage() {
   const [selectedSupplier, setSelectedSupplier] = useState("");
   const [selectedSupplierId, setSelectedSupplierId] = useState("");
   const [extractedItems, setExtractedItems] = useState<any[] | null>(null);
+  // Per-item open select key: forces Select to remount (reset) after each selection
+  const [itemSelectKey, setItemSelectKey] = useState<Record<string, number>>({});
 
   const { data, isLoading, isError, refetch } = useRFQDetail(id);
   const suppliers = useSupplierList();
@@ -273,11 +275,14 @@ export default function RFQDetailPage() {
                           </div>
                         )}
 
-                        {/* Add supplier dropdown */}
+                        {/* Add supplier dropdown — key increments after each pick to reset the Select */}
                         <div className="flex gap-2">
                           <Select
+                            key={itemSelectKey[item.id] ?? 0}
                             onValueChange={(newSupplierId) => {
                               if (!newSupplierId || assignedIds.includes(newSupplierId)) return;
+                              // Bump key to remount (reset) this Select immediately
+                              setItemSelectKey((prev) => ({ ...prev, [item.id]: (prev[item.id] ?? 0) + 1 }));
                               setSuppliersMut.mutate({
                                 item_id: item.id,
                                 supplier_ids: [...assignedIds, newSupplierId],
